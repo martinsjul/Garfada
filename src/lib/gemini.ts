@@ -43,13 +43,14 @@ export async function* streamChat(
 ): AsyncGenerator<StreamEvent> {
   try {
     const stream = await client.generateContentStream(buildRequest(messages, location));
-    let metadata: unknown;
+    // O grounding pode vir espalhado em vários chunks: junta todos (extractPlaces deduplica).
+    const groundingChunks: unknown[] = [];
     for await (const chunk of stream) {
       if (chunk.text) yield { type: "text", text: chunk.text };
-      const chunkMetadata = chunk.candidates?.[0]?.groundingMetadata;
-      if (chunkMetadata) metadata = chunkMetadata;
+      const metadata = chunk.candidates?.[0]?.groundingMetadata as { groundingChunks?: unknown } | undefined;
+      if (Array.isArray(metadata?.groundingChunks)) groundingChunks.push(...metadata.groundingChunks);
     }
-    const places = extractPlaces(metadata);
+    const places = extractPlaces({ groundingChunks });
     if (places.length > 0) yield { type: "places", places };
     yield { type: "done" };
   } catch (error) {

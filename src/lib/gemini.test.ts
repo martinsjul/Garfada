@@ -64,6 +64,16 @@ describe("streamChat", () => {
     expect(places).toMatchObject({ places: [{ name: "A" }, { name: "B" }] });
   });
 
+  it("junta groundingChunks espalhados em vários chunks do stream", async () => {
+    const client = fakeClient([
+      { text: "a", candidates: [{ groundingMetadata: { groundingChunks: [maps("A", "1")] } }] },
+      { text: "b", candidates: [{ groundingMetadata: { groundingSupports: [{ groundingChunkIndices: [0] }] } }] },
+      { text: "c", candidates: [{ groundingMetadata: { groundingChunks: [maps("B", "2"), maps("A", "1")] } }] },
+    ]);
+    const events = await collect(streamChat(client, [user("pizza")]));
+    expect(events.find((e) => e.type === "places")).toMatchObject({ places: [{ name: "A" }, { name: "B" }] });
+  });
+
   it("sem grounding emite text e done, sem evento places", async () => {
     const events = await collect(streamChat(fakeClient([{ text: "Em qual cidade?" }]), [user("comida")]));
     expect(events).toEqual([{ type: "text", text: "Em qual cidade?" }, { type: "done" }]);

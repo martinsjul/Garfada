@@ -164,4 +164,16 @@ describe("Chat", () => {
     expect(await screen.findByText("Pizzaria X", { selector: "strong" })).toBeInTheDocument();
     expect(container.querySelector("img")).toBeNull();
   });
+
+  it("links do markdown abrem em nova aba e imagens não são carregadas", async () => {
+    fetchMock.mockResolvedValueOnce(
+      ndjson([{ type: "text", text: "[Mapa](https://maps.google.com/?cid=9) ![foto](https://x.com/a.png)" }, { type: "done" }]),
+    );
+    const { container } = render(<Chat />);
+    await userEvent.type(screen.getByRole("textbox"), "pizza{Enter}");
+    const link = await screen.findByRole("link", { name: "Mapa" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link.getAttribute("rel")).toContain("noopener");
+    expect(container.querySelector("img")).toBeNull();
+  });
 });

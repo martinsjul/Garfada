@@ -1,6 +1,15 @@
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import type { UIMessage } from "@/hooks/useChat";
 import PlaceCard from "./PlaceCard";
+
+// Links da IA abrem em nova aba (o histórico vive só na memória da página); imagens não são carregadas.
+const markdownComponents: Components = {
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  ),
+};
 
 export default function MessageBubble({ message, pending }: { message: UIMessage; pending?: boolean }) {
   if (message.role === "user") {
@@ -25,7 +34,9 @@ export default function MessageBubble({ message, pending }: { message: UIMessage
             <p>{message.text}</p>
           ) : (
             <div className="prose-chat">
-              <ReactMarkdown>{message.text}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents} disallowedElements={["img"]}>
+                {message.text}
+              </ReactMarkdown>
             </div>
           )
         ) : pending ? (
