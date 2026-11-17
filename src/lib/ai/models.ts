@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 
 export const QUOTA_MESSAGE = "A demo atingiu o limite gratuito de hoje. Volte amanhã! 🙏";
 export const OVERLOAD_MESSAGE = "A IA está sobrecarregada agora. Tente de novo em alguns segundos. ⏳";
+export const BUSY_MESSAGE = "Muita gente usando a demo agora. Espere 1 minutinho e tente de novo. ⏳";
 export const GENERIC_ERROR = "Ops, algo deu errado ao falar com a IA. Tente de novo.";
 
 export function defaultModels(): string[] {
@@ -20,11 +21,18 @@ export function errorStatus(error: unknown): number | undefined {
   return undefined;
 }
 
-export const isRetryable = (status?: number) => status === 503 || status === 500 || status === 504;
+/** 503/500/504/timeout e 429 (as cotas do free tier são por modelo) justificam tentar outro modelo. */
+export const isRetryable = (status?: number) => status === 503 || status === 500 || status === 504 || status === 429;
+
+function isPerMinuteLimit(error: unknown): boolean {
+  const msg = String((error as { message?: unknown } | null)?.message ?? "");
+  return /PerMinute|retry in \d/i.test(msg);
+}
 
 export function friendlyError(error: unknown): string {
   const status = errorStatus(error);
-  return status === 429 ? QUOTA_MESSAGE : isRetryable(status) ? OVERLOAD_MESSAGE : GENERIC_ERROR;
+  if (status === 429) return isPerMinuteLimit(error) ? BUSY_MESSAGE : QUOTA_MESSAGE;
+  return isRetryable(status) ? OVERLOAD_MESSAGE : GENERIC_ERROR;
 }
 
 /**

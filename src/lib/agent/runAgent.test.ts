@@ -82,9 +82,10 @@ describe("runAgent", () => {
     expect(await collect(runAgent(client, input(), { models: ["a", "b"] }))).toEqual([{ type: "error", message: OVERLOAD_MESSAGE }]);
   });
 
-  it("429 → mensagem de cota", async () => {
+  it("429 em todos os modelos → mensagem de cota", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const { client } = scripted([{ status: 429, message: "RESOURCE_EXHAUSTED" }]);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { client } = scripted([{ status: 429, message: "RESOURCE_EXHAUSTED" }, { status: 429, message: "RESOURCE_EXHAUSTED" }]);
     expect(await collect(runAgent(client, input(), { models: ["a", "b"] }))).toEqual([{ type: "error", message: QUOTA_MESSAGE }]);
   });
 
