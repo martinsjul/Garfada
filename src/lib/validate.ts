@@ -1,6 +1,7 @@
 import type { ChatMessage, LatLng } from "./types";
 
-export const MAX_MESSAGE_LENGTH = 500;
+import { MAX_MESSAGE_LENGTH } from "./limits";
+export { MAX_MESSAGE_LENGTH };
 const MAX_ASSISTANT_LENGTH = 8000;
 const MAX_HISTORY = 10;
 

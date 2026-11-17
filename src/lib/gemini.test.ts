@@ -37,7 +37,7 @@ describe("buildRequest", () => {
       role: i % 2 === 0 ? "user" : "assistant",
       text: `m${i}`,
     }));
-    const req = buildRequest(messages) as any;
+    const req = buildRequest(messages);
     expect(req.contents).toHaveLength(10);
     expect(req.contents[0]).toEqual({ role: "user", parts: [{ text: "m2" }] });
     expect(req.contents[1].role).toBe("model");
@@ -46,9 +46,9 @@ describe("buildRequest", () => {
   });
 
   it("inclui latLng quando há localização", () => {
-    const req = buildRequest([user("oi")], { latitude: -23.5, longitude: -46.6 }) as any;
-    expect(req.config.toolConfig.retrievalConfig.latLng).toEqual({ latitude: -23.5, longitude: -46.6 });
-    expect((buildRequest([user("oi")]) as any).config.toolConfig).toBeUndefined();
+    const req = buildRequest([user("oi")], { latitude: -23.5, longitude: -46.6 });
+    expect((req.config as { toolConfig?: { retrievalConfig: { latLng: unknown } } }).toolConfig?.retrievalConfig.latLng).toEqual({ latitude: -23.5, longitude: -46.6 });
+    expect((buildRequest([user("oi")]).config as { toolConfig?: unknown }).toolConfig).toBeUndefined();
   });
 });
 
