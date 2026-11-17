@@ -1,6 +1,8 @@
 import ReactMarkdown, { type Components } from "react-markdown";
-import type { UIMessage } from "@/hooks/useChat";
-import PlaceCard from "./PlaceCard";
+import type { UIMessage } from "@/hooks/useAgentChat";
+import type { DishResult } from "@/lib/types";
+import DishCard from "./DishCard";
+import ThinkingSteps from "./ThinkingSteps";
 
 // Links da IA abrem em nova aba (o histórico vive só na memória da página); imagens não são carregadas.
 const markdownComponents: Components = {
@@ -11,7 +13,13 @@ const markdownComponents: Components = {
   ),
 };
 
-export default function MessageBubble({ message, pending }: { message: UIMessage; pending?: boolean }) {
+interface Props {
+  message: UIMessage;
+  pending?: boolean;
+  onAdd: (dish: DishResult) => void;
+}
+
+export default function MessageBubble({ message, pending, onAdd }: Props) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -24,39 +32,43 @@ export default function MessageBubble({ message, pending }: { message: UIMessage
 
   return (
     <div className="flex flex-col gap-3">
-      <div
-        className={`max-w-[92%] break-words rounded-2xl rounded-bl-sm px-4 py-3 ${
-          message.error ? "border border-danger/40 bg-danger/10 text-danger" : "bg-card text-ink shadow-sm"
-        }`}
-      >
-        {message.text ? (
-          message.error ? (
-            <p>{message.text}</p>
-          ) : (
-            <div className="prose-chat">
-              <ReactMarkdown components={markdownComponents} disallowedElements={["img"]}>
-                {message.text}
-              </ReactMarkdown>
-            </div>
-          )
-        ) : pending ? (
-          <span className="inline-flex gap-1" aria-label="Digitando">
-            <span className="dot" />
-            <span className="dot [animation-delay:150ms]" />
-            <span className="dot [animation-delay:300ms]" />
-          </span>
-        ) : null}
-      </div>
+      {message.steps && <ThinkingSteps steps={message.steps} live={pending} />}
 
-      {message.places && message.places.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {message.places.map((p) => (
-              <PlaceCard key={p.id} place={p} />
-            ))}
-          </ul>
-          <p className="text-xs text-muted">Dados de lugares: Google Maps</p>
+      {(message.text || pending) && (
+        <div
+          className={`max-w-[92%] break-words rounded-2xl rounded-bl-sm px-4 py-3 ${
+            message.error ? "border border-danger/40 bg-danger/10 text-danger" : "bg-card text-ink shadow-sm"
+          }`}
+        >
+          {message.text ? (
+            message.error ? (
+              <p>{message.text}</p>
+            ) : (
+              <div className="prose-chat">
+                <ReactMarkdown components={markdownComponents} disallowedElements={["img"]}>
+                  {message.text}
+                </ReactMarkdown>
+              </div>
+            )
+          ) : (
+            <span className="inline-flex items-center gap-2 text-sm text-muted" role="status">
+              <span className="inline-flex gap-1" aria-hidden>
+                <span className="dot" />
+                <span className="dot [animation-delay:150ms]" />
+                <span className="dot [animation-delay:300ms]" />
+              </span>
+              Pensando…
+            </span>
+          )}
         </div>
+      )}
+
+      {message.dishes && message.dishes.length > 0 && (
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {message.dishes.map((d) => (
+            <DishCard key={d.itemId} dish={d} onAdd={onAdd} />
+          ))}
+        </ul>
       )}
     </div>
   );

@@ -28,7 +28,7 @@ export default function ChatInput({ onSend, disabled, leading }: Props) {
         value={text}
         onChange={(e) => setText(e.target.value)}
         maxLength={MAX_MESSAGE_LENGTH}
-        placeholder="Pergunte algo… ex: rodízio até R$ 80"
+        placeholder="Ex.: quero um japonês até R$ 60, sem camarão"
         aria-label="Mensagem"
         className="h-11 min-w-0 flex-1 rounded-full border border-line bg-card px-4 text-ink placeholder:text-muted focus:border-accent focus:outline-none"
       />

@@ -7,6 +7,7 @@ const events: StreamEvent[] = [
   { type: "done" },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const runAgent = vi.fn(async function* (..._args: unknown[]) {
   yield* events;
 });

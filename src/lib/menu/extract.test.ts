@@ -35,7 +35,8 @@ describe("normalizeDraft", () => {
 
 describe("extractMenu", () => {
   it("envia a imagem com schema JSON e devolve o rascunho normalizado", async () => {
-    const generateContent = vi.fn(async () => ({ text: JSON.stringify(raw) }));
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const generateContent = vi.fn(async (_req: unknown) => ({ text: JSON.stringify(raw) }));
     const client: MenuClient = { generateContent };
     const draft = await extractMenu(client, { data: "QUJD", mimeType: "image/jpeg" }, ["m1"]);
     expect(draft.itens).toHaveLength(2);

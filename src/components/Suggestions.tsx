@@ -1,22 +1,25 @@
 export const SUGGESTIONS = [
-  "Rodízio de pizza perto de mim",
-  "Café com bolo até R$ 30",
-  "Onde comer uma boa feijoada?",
-  "Japonês barato no centro",
+  "Sou vegetariana, quero algo até R$ 40",
+  "Rodízio para hoje à noite",
+  "Café com bolo que chegue rápido",
+  "Feijoada até R$ 50, sem camarão",
 ];
 
-export default function Suggestions({ onPick }: { onPick: (text: string) => void }) {
+export default function Suggestions({ onPick, extra = [] }: { onPick: (text: string) => void; extra?: string[] }) {
   return (
     <div className="flex flex-col items-center gap-5 py-8 text-center">
       <div className="text-5xl" aria-hidden>
         🍽️
       </div>
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-ink">Onde vamos comer hoje?</h2>
-        <p className="text-sm text-muted">Peça por preço, prato, tipo de serviço ou bairro.</p>
+        <h1 className="text-xl font-semibold text-ink">O que vamos pedir hoje?</h1>
+        <p className="max-w-md text-sm text-muted">
+          Converse como com um amigo: diga o que quer, quanto quer gastar e suas restrições. Eu busco, lembro e monto o
+          pedido.
+        </p>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
-        {SUGGESTIONS.map((s) => (
+        {[...extra, ...SUGGESTIONS].map((s) => (
           <button
             key={s}
             type="button"

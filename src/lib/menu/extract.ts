@@ -2,28 +2,9 @@ import "server-only";
 import { Type, type Schema } from "@google/genai";
 import { getGenAIModels, withModelFallback } from "../ai/models";
 import { TAGS, type Tag } from "../types";
+import type { Combo, DraftItem, MenuDraft } from "./types";
 
-export interface DraftItem {
-  nome: string;
-  descricao: string;
-  descricaoOriginal: string;
-  preco: number;
-  categoria: string;
-  tags: Tag[];
-}
-
-export interface Combo {
-  nome: string;
-  itens: string[];
-  precoSugerido: number;
-  motivo: string;
-}
-
-export interface MenuDraft {
-  restaurante: { nome: string; culinaria: string };
-  itens: DraftItem[];
-  combos: Combo[];
-}
+export type { Combo, DraftItem, MenuDraft };
 
 export interface MenuClient {
   generateContent(req: unknown): Promise<{ text?: string }>;

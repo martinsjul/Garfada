@@ -5,8 +5,8 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Garfada · Restaurantes com IA",
-  description: "Chat com IA que encontra restaurantes e cafeterias reais por preço, prato ou tipo de serviço.",
+  title: "Garfada · Pedidos por conversa com IA",
+  description: "Agente de IA que entende o que você quer comer, lembra suas restrições e monta o pedido. Restaurantes sobem o cardápio por foto.",
 };
 
 export const viewport: Viewport = {
