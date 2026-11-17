@@ -12,7 +12,7 @@ Protótipo de **IA generativa aplicada a delivery**, com os dois lados do market
 - **🧑 Cliente: agente de pedidos.** Você conversa como com um amigo: *"sou vegetariana, quero uma massa até R$ 50"*. O agente busca no catálogo, **lembra suas restrições**, monta o **carrinho** e mostra **como pensou** em cada passo.
 - **👩‍🍳 Restaurante: copiloto de cardápio.** O dono envia a **foto do cardápio de papel**. A IA extrai pratos, preços, categorias e tags (vegano, sem glúten…), reescreve as descrições, sugere combos e publica. **Na hora, o agente do cliente já recomenda esses pratos.**
 
-### 🔗 Demo ao vivo: **COLOQUE-O-LINK-AQUI**
+### 🔗 Demo ao vivo: https://garfada-three.vercel.app/
 
 | Agente de pedidos | Celular |
 |---|---|
