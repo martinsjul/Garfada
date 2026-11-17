@@ -1,51 +1,60 @@
-# 🍽️ Garfada: restaurantes e cafés com IA
+# 🍽️ Garfada: pedidos de comida por conversa, com IA
 
-Chat em português que encontra **restaurantes e cafeterias reais** a partir de pedidos em linguagem natural:
+Protótipo de **IA generativa aplicada a delivery**, com os dois lados do marketplace:
 
-- "Lugares para comer até R$ 50 no centro"
-- "Onde tem uma boa moqueca?"
-- "Rodízio de pizza perto de mim"
-
-A IA (Gemini) consulta o **Google Maps** antes de responder, então os lugares recomendados existem de verdade, e cada um vira um card com link para o Maps.
+- **🧑 Cliente: agente de pedidos.** Você conversa como com um amigo: *"sou vegetariana, quero uma massa até R$ 50"*. O agente busca no catálogo, **lembra suas restrições**, monta o **carrinho** e mostra **como pensou** em cada passo.
+- **👩‍🍳 Restaurante: copiloto de cardápio.** O dono envia a **foto do cardápio de papel**. A IA extrai pratos, preços, categorias e tags (vegano, sem glúten…), reescreve as descrições, sugere combos e publica. **Na hora, o agente do cliente já recomenda esses pratos.**
 
 **Demo:** <!-- link da Vercel -->
 
-| Desktop | Celular |
+| Agente de pedidos | Celular |
 |---|---|
-| ![Screenshot desktop](docs/screenshot.png) | ![Screenshot celular](docs/screenshot-mobile.png) |
+| ![Agente de pedidos](docs/screenshot.png) | ![Celular](docs/screenshot-mobile.png) |
+
+![Copiloto do restaurante](docs/screenshot-restaurante.png)
+
+## O que tem de GenAI aqui
+
+| Técnica | Onde | Por quê |
+|---|---|---|
+| **Agente com function calling** | `src/lib/agent/` | O Gemini decide quais das 9 ferramentas chamar (buscar pratos, ver cardápio, salvar preferência, adicionar ao carrinho…) num loop de até 6 passos. |
+| **Guardrails no código, não só no prompt** | `tools.ts`, `cart.ts`, `validate.ts` | As restrições filtram os resultados no código; o carrinho aceita só um restaurante; os preços são **recalculados no servidor** a partir do catálogo. O modelo não consegue "furar" essas regras. |
+| **Memória de preferências** | `AgentState` | Dieta, ingredientes a evitar e gostos vão no estado da conversa e no system prompt. O cliente vê e edita essas preferências no painel. |
+| **Visão + saída estruturada** | `src/lib/menu/extract.ts` | Foto → JSON com `responseSchema`, depois uma normalização defensiva (preço, tags, vegano ⇒ vegetariano, limites de tamanho). |
+| **Evals com a API real** | `evals/` | 10 cenários: preço máximo, dieta, ingrediente proibido, rodízio, tempo de entrega, referência a "esse/o primeiro", um restaurante por pedido, fora do tema, não inventar prato, orçamento. **Resultado atual: 10/10** ([evals/RESULTS.md](evals/RESULTS.md)). |
+| **Transparência** | "Como a IA pensou" | Cada resposta mostra as ferramentas chamadas, os argumentos e o resultado, em tempo real (streaming NDJSON). |
+| **Resiliência e custo** | `src/lib/ai/models.ts` | Modelo reserva automático em caso de 503, timeout ou cota por minuto; retries curtos; rate limit por IP; histórico limitado. Roda **100% no free tier** do Gemini. |
 
 ## Arquitetura
 
 ```
-Navegador (React)  ──POST /api/chat──▶  Route Handler (servidor Next.js)
-   mensagens + localização opcional        │  valida + rate limit
-                                           │  Gemini com a tool googleMaps (streaming)
-   ◀──── NDJSON: text / places / error ────┘  groundingMetadata → cards de lugares
+             Pedir comida (/)                               Para restaurantes (/restaurante)
+  ┌──────────────────────────────────┐              ┌──────────────────────────────────────┐
+  │ Chat · cards · carrinho · prefs  │              │ foto → revisão (tabela) → publicar   │
+  └──────────────┬───────────────────┘              └──────────────┬───────────────────────┘
+                 │ mensagens + estado + restaurantes importados     │ imagem (redimensionada no navegador)
+                 ▼                                                  ▼
+        POST /api/chat (NDJSON)                            POST /api/menu
+   valida · rate limit · recalcula carrinho            valida · rate limit
+                 │                                                  │
+                 ▼                                                  ▼
+   ┌── loop do agente (≤ 6 passos) ──┐                  Gemini (visão + JSON schema)
+   │ Gemini ⇄ ferramentas no código  │                              │
+   │  buscar_pratos · ver_cardapio   │                              ▼
+   │  salvar_preferencia · carrinho… │                  rascunho normalizado do cardápio
+   └─────────────────────────────────┘                  → salvo no navegador (localStorage)
+     eventos: tool · dishes · state · text · done        → enviado junto com cada mensagem do chat
 ```
 
-| Pasta / arquivo | Responsabilidade |
-|---|---|
-| `src/app/api/chat/route.ts` | Endpoint: valida, aplica rate limit e transmite eventos NDJSON |
-| `src/lib/gemini.ts` | Monta a requisição (system prompt, tool `googleMaps`, localização) e converte o stream em eventos |
-| `src/lib/places.ts` | Extrai os lugares dos metadados de grounding (com validação e deduplicação) |
-| `src/lib/validate.ts`, `rateLimit.ts` | Validação da entrada e limite de 20 mensagens/hora por IP |
-| `src/hooks/useChat.ts` | Estado da conversa no cliente e leitura do stream |
-| `src/components/` | Interface: chat, bolhas com markdown, cards, sugestões, botão de localização |
+- **Catálogo:** 12 restaurantes **fictícios** em bairros reais de São Paulo (`src/data/catalog.ts`), mais os que você publicar pelo copiloto.
+- **Sem banco de dados:** o estado da conversa vive no cliente e o servidor valida tudo a cada requisição. Isso deixa o deploy gratuito e simples. Num produto real, esse estado iria para um banco.
 
-## Decisões técnicas
+## Decisões e trade-offs
 
-- **Grounding em vez de "memória" da IA.** Um LLM sozinho inventa restaurantes, preços e endereços. Com a tool `googleMaps`, o Gemini busca lugares reais antes de responder.
-- **Cards vêm dos metadados, não do texto.** Os cards são montados a partir de `groundingMetadata.groundingChunks`, e não extraindo nomes do texto gerado. Se a IA alucinar um nome no texto, ele não vira card com link.
-- **Streaming em NDJSON.** Um evento JSON por linha (`text`, `places`, `error`, `done`). É simples de produzir no servidor, de ler no cliente e de testar.
-- **Chave só no servidor.** `GEMINI_API_KEY` fica no Route Handler (`import "server-only"`), nunca vai para o navegador.
-- **Protegendo a cota gratuita.** Rate limit por IP, histórico limitado às últimas 10 mensagens e mensagens de até 500 caracteres. Quando a cota do Gemini acaba, aparece uma mensagem amigável em vez de erro.
-- **Markdown seguro.** As respostas são renderizadas com `react-markdown` sem HTML cru, o que evita XSS vindo do texto da IA.
-
-## Limitações conhecidas
-
-- **Preço** usa a faixa do Google Maps ($ a $$$$), que é aproximada. Valores em reais são estimativas.
-- **Pratos e rodízio** são inferidos de avaliações e descrições. A IA avisa quando não tem certeza.
-- O **rate limit** é em memória, por instância do servidor: é uma proteção de melhor esforço, adequada a uma demo.
+- **Busca por palavra-chave em vez de embeddings.** Para 12 restaurantes, é suficiente e não gasta cota; o próprio agente expande sinônimos na consulta. Próximo passo: busca semântica com embeddings.
+- **Resposta final sem streaming de tokens.** O loop precisa da resposta completa para decidir se chama ferramentas. Em troca, os passos chegam ao vivo, então o usuário vê o progresso.
+- **`gemini-3.5-flash-lite` como padrão.** Foi o modelo mais estável no free tier nos testes, com `gemini-3.5-flash` como reserva.
+- **Cardápio importado é dado não confiável:** pode conter prompt injection. O system prompt manda tratar resultados de ferramentas como dados, e os guardrails críticos (preço, restrições, carrinho) estão no código.
 
 ## Rodando localmente
 
@@ -60,24 +69,29 @@ npm run dev                  # http://localhost:3000
 Testes:
 
 ```bash
-npm test                          # unitários e de componentes (Vitest + Testing Library)
+npm test                          # 100+ testes unitários e de componentes (Vitest + Testing Library)
 npx playwright install chromium   # só na primeira vez
 npx playwright test               # ponta a ponta (desktop e celular), com a API simulada
+npm run evals                     # qualidade do agente com o Gemini real (precisa de GEMINI_API_KEY)
 ```
 
 ## Deploy (grátis na Vercel)
 
-1. Suba o repositório para o GitHub.
-2. Na [Vercel](https://vercel.com/new), importe o repositório.
-3. Em *Environment Variables*, defina `GEMINI_API_KEY` (e, se quiser, `GEMINI_MODEL`).
-4. Deploy. 🎉
+1. Importe o repositório em [vercel.com/new](https://vercel.com/new).
+2. Em *Environment Variables*, defina `GEMINI_API_KEY`.
+3. Deploy. 🎉
 
 ## Próximos passos
 
-- Base própria de restaurantes parceiros com *function calling* (filtros exatos de preço, prato e rodízio).
-- Rate limit compartilhado (ex.: Upstash Redis) e cache de perguntas repetidas.
-- Mostrar no card trechos de avaliações que o Maps devolve (`placeAnswerSources`).
+- Busca semântica (embeddings) e ranking personalizado pelo histórico de pedidos.
+- Pedido por voz (o Gemini aceita áudio).
+- Persistência real (banco + login) e painel do restaurante com perguntas sobre vendas.
+- Mais evals, com casos gerados automaticamente e métricas por ferramenta.
 
 ## Stack
 
 Next.js · React · TypeScript · Tailwind CSS · Google Gen AI SDK (`@google/genai`) · Vitest · Testing Library · Playwright
+
+---
+
+*Projeto pessoal de portfólio, inspirado em assistentes de pedido por conversa. Restaurantes, pratos e preços são fictícios; nenhum pagamento é processado.*
