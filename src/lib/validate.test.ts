@@ -8,7 +8,7 @@ const msg = (text: string, role = "user") => ({ role, text });
 describe("parseChatBody", () => {
   it("aceita conversa válida sem estado (usa estado vazio)", () => {
     expect(parseChatBody({ messages: [msg("oi")] })).toEqual({
-      ok: true, messages: [msg("oi")], state: { prefs: EMPTY_PREFS, cart: EMPTY_CART }, imported: [],
+      ok: true, messages: [msg("oi")], state: { prefs: EMPTY_PREFS, cart: EMPTY_CART, recent: [] }, imported: [],
     });
   });
 
@@ -33,6 +33,11 @@ describe("parseChatBody", () => {
   it("começa o histórico por uma mensagem do usuário", () => {
     const res = parseChatBody({ messages: [msg("resposta antiga", "assistant"), msg("oi")] });
     expect(res.ok && res.messages).toEqual([msg("oi")]);
+  });
+
+  it("state.recent mantém só ids que existem no catálogo (máx. 8)", () => {
+    const res = parseChatBody({ messages: [msg("oi")], state: { recent: ["cafe-do-largo-1", "nao-existe", 5, ...Array(10).fill("bar-do-zeca-1")] } });
+    expect(res.ok && res.state.recent).toEqual(["cafe-do-largo-1", "bar-do-zeca-1"]);
   });
 
   it("aceita até 5 restaurantes importados e ignora os inválidos", () => {

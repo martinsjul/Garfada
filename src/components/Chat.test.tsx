@@ -17,7 +17,7 @@ const bolo: DishResult = {
 
 const happy: StreamEvent[] = [
   { type: "tool", step: { name: "salvar_preferencia", args: { tipo: "dieta", valor: "vegetariano" }, resumo: "Lembrar: dieta → vegetariano" } },
-  { type: "state", state: { prefs: { dieta: ["vegetariano"], evitar: [], gostos: [] }, cart: { taxaEntrega: 0, itens: [] } } },
+  { type: "state", state: { prefs: { dieta: ["vegetariano"], evitar: [], gostos: [] }, cart: { taxaEntrega: 0, itens: [] }, recent: [] } },
   { type: "tool", step: { name: "buscar_pratos", args: { texto: "bolo", preco_max: 30 }, resumo: "1 prato(s) encontrado(s)" } },
   { type: "dishes", dishes: [bolo] },
   { type: "text", text: "Que tal o **bolo de cenoura**?" },
@@ -42,7 +42,7 @@ describe("Chat", () => {
     expect(await screen.findByText("bolo de cenoura")).toBeInTheDocument();
     expect(sentBody()).toEqual({
       messages: [{ role: "user", text: "Sou vegetariana, quero algo até R$ 40" }],
-      state: { prefs: { dieta: [], evitar: [], gostos: [] }, cart: { taxaEntrega: 0, itens: [] } },
+      state: { prefs: { dieta: [], evitar: [], gostos: [] }, cart: { taxaEntrega: 0, itens: [] }, recent: [] },
       restaurantes: [],
     });
   });

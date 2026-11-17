@@ -3,7 +3,7 @@ import { executeTool, TOOL_DECLARATIONS } from "./tools";
 import { CATALOG } from "@/data/catalog";
 import { EMPTY_CART, EMPTY_PREFS, type AgentState } from "../types";
 
-const state = (over: Partial<AgentState> = {}): AgentState => ({ prefs: EMPTY_PREFS, cart: EMPTY_CART, ...over });
+const state = (over: Partial<AgentState> = {}): AgentState => ({ prefs: EMPTY_PREFS, cart: EMPTY_CART, recent: [], ...over });
 const ctx = (s = state()) => ({ catalog: CATALOG, state: s });
 
 describe("TOOL_DECLARATIONS", () => {
@@ -23,6 +23,13 @@ describe("executeTool", () => {
     expect(out.response).toMatchObject({ total: out.dishes?.length });
     expect(out.step).toMatchObject({ name: "buscar_pratos", args: { texto: "feijoada", preco_max: 50 } });
     expect(out.step.resumo).toMatch(/prato/);
+  });
+
+  it("buscar_pratos guarda os pratos mostrados em state.recent (máx. 8)", () => {
+    const out = executeTool("buscar_pratos", { texto: "pizza" }, ctx());
+    expect(out.state.recent).toEqual(out.dishes?.map((d) => d.itemId).slice(0, 8));
+    const none = executeTool("buscar_pratos", { texto: "xyzabc" }, ctx(state({ recent: ["forno-da-vila-1"] })));
+    expect(none.state.recent).toEqual(["forno-da-vila-1"]);
   });
 
   it("buscar_pratos respeita restrições salvas", () => {

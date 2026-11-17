@@ -53,7 +53,7 @@ export async function* runAgent(
           model,
           contents,
           config: {
-            systemInstruction: buildSystemPrompt(state),
+            systemInstruction: buildSystemPrompt(state, input.catalog),
             tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
             temperature: 0.3,
             ...(opts.signal && { abortSignal: opts.signal }),

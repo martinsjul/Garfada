@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { readEvents } from "@/lib/readEvents";
-import { EMPTY_CART, EMPTY_PREFS, type AgentState, type ChatMessage, type DishResult, type Restaurant, type ToolStep } from "@/lib/types";
+import { EMPTY_STATE, type AgentState, type ChatMessage, type DishResult, type Restaurant, type ToolStep } from "@/lib/types";
 
 export type UIMessage = ChatMessage & { steps?: ToolStep[]; dishes?: DishResult[]; error?: boolean };
 
@@ -11,7 +11,7 @@ const GENERIC = "Ops, algo deu errado. Tente de novo.";
 
 export function useAgentChat(imported: Restaurant[]) {
   const [messages, setMessages] = useState<UIMessage[]>([]);
-  const [agentState, setAgentStateRaw] = useState<AgentState>({ prefs: EMPTY_PREFS, cart: EMPTY_CART });
+  const [agentState, setAgentStateRaw] = useState<AgentState>(EMPTY_STATE);
   const [loading, setLoading] = useState(false);
   const busy = useRef(false);
   const history = useRef<UIMessage[]>([]);

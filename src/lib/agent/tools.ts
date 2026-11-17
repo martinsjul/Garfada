@@ -4,6 +4,7 @@ import { findItem, getMenu, searchDishes, searchRestaurants, violatesPrefs, type
 import { EMPTY_CART, TAGS, type AgentState, type DishResult, type Restaurant, type Tag, type ToolStep } from "../types";
 
 const TAG_LIST = [...TAGS];
+export const MAX_RECENT = 8;
 
 export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
@@ -132,7 +133,7 @@ export function executeTool(name: string, rawArgs: Record<string, unknown>, ctx:
       const dishes = searchDishes(catalog, args as DishFilters, state.prefs);
       return {
         response: { total: dishes.length, pratos: dishes },
-        state,
+        state: dishes.length ? { ...state, recent: dishes.slice(0, MAX_RECENT).map((d) => d.itemId) } : state,
         dishes,
         step: { name, args, resumo: dishes.length ? `${dishes.length} prato(s) encontrado(s)` : "Nenhum prato encontrado" },
       };

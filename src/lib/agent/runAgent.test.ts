@@ -35,7 +35,7 @@ async function collect(gen: AsyncGenerator<StreamEvent>) {
 
 const input = (text = "quero feijoada") => ({
   messages: [{ role: "user" as const, text }],
-  state: { prefs: EMPTY_PREFS, cart: EMPTY_CART },
+  state: { prefs: EMPTY_PREFS, cart: EMPTY_CART, recent: [] },
   catalog: CATALOG,
 });
 
@@ -47,11 +47,12 @@ describe("runAgent", () => {
       text("Achei a **Feijoada Vegana** do Raiz."),
     ]);
     const events = await collect(runAgent(client, input("sou vegana, quero feijoada"), { models: ["m1"] }));
-    expect(events.map((e) => e.type)).toEqual(["tool", "state", "tool", "dishes", "text", "done"]);
+    expect(events.map((e) => e.type)).toEqual(["tool", "state", "tool", "dishes", "state", "text", "done"]);
     const dishes = events.find((e) => e.type === "dishes");
     expect(dishes?.type === "dishes" && dishes.dishes.map((d) => d.nome)).toEqual(["Feijoada Vegana"]);
-    const state = events.find((e) => e.type === "state");
+    const state = events.findLast((e) => e.type === "state");
     expect(state?.type === "state" && state.state.prefs.dieta).toEqual(["vegano"]);
+    expect(state?.type === "state" && state.state.recent).toEqual(["raiz-vegana-3"]);
     // o resultado da ferramenta volta para o modelo como functionResponse
     const last = requests[2].contents.at(-1) as { role: string; parts: { functionResponse: { name: string } }[] };
     expect(last.role).toBe("user");

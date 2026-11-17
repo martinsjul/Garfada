@@ -111,5 +111,8 @@ export function parseChatBody(body: unknown): ParseResult {
 
   const state = isRecord(body.state) ? body.state : {};
   const catalog = [...CATALOG, ...imported];
-  return { ok: true, messages, state: { prefs: sanitizePrefs(state.prefs), cart: rebuildCart(state.cart, catalog) }, imported };
+  const recentIds = [...new Set((Array.isArray(state.recent) ? state.recent : []).filter((id): id is string => typeof id === "string"))]
+    .filter((id) => findItem(catalog, id) !== null)
+    .slice(0, 8);
+  return { ok: true, messages, state: { prefs: sanitizePrefs(state.prefs), cart: rebuildCart(state.cart, catalog), recent: recentIds }, imported };
 }

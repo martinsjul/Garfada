@@ -55,6 +55,8 @@ export interface Cart {
 export interface AgentState {
   prefs: Preferences;
   cart: Cart;
+  /** item_ids dos pratos mostrados na última busca, para o agente entender "o primeiro", "esse". */
+  recent: string[];
 }
 
 export interface DishResult {
@@ -83,3 +85,4 @@ export type StreamEvent =
 
 export const EMPTY_PREFS: Preferences = { dieta: [], evitar: [], gostos: [] };
 export const EMPTY_CART: Cart = { taxaEntrega: 0, itens: [] };
+export const EMPTY_STATE: AgentState = { prefs: EMPTY_PREFS, cart: EMPTY_CART, recent: [] };
