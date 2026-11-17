@@ -17,9 +17,10 @@ interface Props {
   message: UIMessage;
   pending?: boolean;
   onAdd: (dish: DishResult) => void;
+  busy?: boolean;
 }
 
-export default function MessageBubble({ message, pending, onAdd }: Props) {
+export default function MessageBubble({ message, pending, onAdd, busy }: Props) {
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -66,7 +67,7 @@ export default function MessageBubble({ message, pending, onAdd }: Props) {
       {message.dishes && message.dishes.length > 0 && (
         <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {message.dishes.map((d) => (
-            <DishCard key={d.itemId} dish={d} onAdd={onAdd} />
+            <DishCard key={d.itemId} dish={d} onAdd={onAdd} disabled={busy} />
           ))}
         </ul>
       )}

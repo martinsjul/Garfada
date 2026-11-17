@@ -5,7 +5,7 @@ import { CATALOG } from "@/data/catalog";
 import { useAgentChat } from "@/hooks/useAgentChat";
 import { useImportedRestaurants } from "@/hooks/useImportedRestaurants";
 import { addToCart, cartTotals, formatBRL, removeFromCart } from "@/lib/cart";
-import { findItem } from "@/lib/catalog/search";
+import { findItem, violatesPrefs } from "@/lib/catalog/search";
 import { EMPTY_CART, type DishResult, type Preferences } from "@/lib/types";
 import AppHeader from "./AppHeader";
 import CartPanel from "./CartPanel";
@@ -29,17 +29,24 @@ export default function Chat() {
   const addDish = useCallback(
     (dish: DishResult) => {
       const found = findItem(catalog, dish.itemId);
-      if (!found) return;
-      const res = addToCart(agentState.cart, found.restaurant, found.item, 1);
-      if (res.ok) {
-        setAgentState((s) => ({ ...s, cart: res.cart }));
-        setNotice(undefined);
-      } else {
-        setNotice(res.error);
-        setCartOpen(true);
-      }
+      if (!found || loading) return;
+      let error: string | undefined;
+      setAgentState((s) => {
+        if (violatesPrefs(found.item, s.prefs)) {
+          error = `"${found.item.nome}" não combina com uma restrição sua. Remova a preferência se quiser pedir mesmo assim.`;
+          return s;
+        }
+        const res = addToCart(s.cart, found.restaurant, found.item, 1);
+        if (!res.ok) {
+          error = res.error;
+          return s;
+        }
+        return { ...s, cart: res.cart };
+      });
+      setNotice(error);
+      if (error) setCartOpen(true);
     },
-    [agentState.cart, catalog, setAgentState],
+    [catalog, loading, setAgentState],
   );
 
   const removePref = (key: keyof Preferences, value: string) =>
@@ -82,7 +89,7 @@ export default function Chat() {
             ) : (
               <div className="flex flex-col gap-4">
                 {messages.map((m, i) => (
-                  <MessageBubble key={i} message={m} pending={loading && i === messages.length - 1} onAdd={addDish} />
+                  <MessageBubble key={i} message={m} pending={loading && i === messages.length - 1} onAdd={addDish} busy={loading} />
                 ))}
               </div>
             )}
@@ -102,6 +109,7 @@ export default function Chat() {
         >
           <CartPanel
             state={agentState}
+            busy={loading}
             notice={notice}
             onRemoveItem={(id) => setAgentState((s) => ({ ...s, cart: removeFromCart(s.cart, id) }))}
             onRemovePref={removePref}

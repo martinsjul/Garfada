@@ -43,12 +43,13 @@ export async function withModelFallback<T>(
   models: string[],
   fn: (model: string) => Promise<T>,
   cursor: { index: number } = { index: 0 },
+  signal?: AbortSignal,
 ): Promise<T> {
   while (true) {
     try {
       return await fn(models[cursor.index]);
     } catch (error) {
-      if (isRetryable(errorStatus(error)) && cursor.index < models.length - 1) {
+      if (!signal?.aborted && isRetryable(errorStatus(error)) && cursor.index < models.length - 1) {
         console.warn(`[ia] ${models[cursor.index]} indisponível, tentando ${models[cursor.index + 1]}`);
         cursor.index++;
         continue;
@@ -61,7 +62,7 @@ export async function withModelFallback<T>(
 export function getGenAIModels() {
   const ai = new GoogleGenAI({
     apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: { timeout: 25_000, retryOptions: { attempts: 2, initialDelay: 0.5, maxDelay: 2 } },
+    httpOptions: { timeout: 20_000, retryOptions: { attempts: 1 } }, // sem retry do SDK: a troca de modelo já cobre
   });
   return ai.models;
 }

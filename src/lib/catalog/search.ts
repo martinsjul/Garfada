@@ -51,13 +51,34 @@ function meetsDiet(item: MenuItem, diet: Tag): boolean {
   return diet === "apimentado"; // "apimentado" é gosto, não restrição
 }
 
+/** Radical simples em português: plural → singular (camarões → camarao, pães → pao, mares → mar). */
+export function stem(token: string): string {
+  if (token.length <= 3) return token;
+  if (/(oes|aes)$/.test(token)) return token.slice(0, -3) + "ao";
+  if (token.endsWith("ns")) return token.slice(0, -2) + "m";
+  if (/[rsz]es$/.test(token)) return token.slice(0, -2);
+  if (token.endsWith("s")) return token.slice(0, -1);
+  return token;
+}
+
+/** Termos que o cliente evita e que valem por uma família de ingredientes. */
+const AVOID_GROUPS: Record<string, string[]> = {
+  "fruto mar": ["camarao", "lula", "polvo", "marisco", "lagosta", "ostra", "mexilhao", "siri", "caranguejo"],
+  peixe: ["peixe", "salmao", "atum", "bacalhau", "tilapia", "sardinha"],
+};
+
+function avoidMatchers(term: string): string[][] {
+  const words = tokens(term).map(stem);
+  if (!words.length) return [];
+  const group = AVOID_GROUPS[words.join(" ")];
+  return group ? [words, ...group.map((g) => [g])] : [words];
+}
+
 export function violatesPrefs(item: MenuItem, prefs: Preferences): boolean {
   if (prefs.dieta.some((d) => !meetsDiet(item, d))) return true;
-  const text = normalize(`${item.nome} ${item.descricao}`);
-  return prefs.evitar.some((e) => {
-    const term = normalize(e);
-    return term.length > 0 && text.includes(term);
-  });
+  if (!prefs.evitar.length) return false;
+  const itemWords = new Set(tokens(`${item.nome} ${item.descricao}`).map(stem));
+  return prefs.evitar.some((term) => avoidMatchers(term).some((words) => words.every((w) => itemWords.has(w))));
 }
 
 function score(fields: { strong: string; medium: string; weak: string }, query: string[]): number {

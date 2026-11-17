@@ -277,8 +277,8 @@ export default function MenuImporter() {
                 <div className="rounded-xl bg-accent/10 p-3">
                   <h3 className="mb-2 text-sm font-semibold text-ink">💡 Combos sugeridos pela IA</h3>
                   <ul className="space-y-2">
-                    {combos.map((c) => (
-                      <li key={c.nome} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    {combos.map((c, i) => (
+                      <li key={`${i}-${c.nome}`} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                         <span>
                           <span className="font-medium text-ink">{c.nome}</span>
                           <span className="text-muted">

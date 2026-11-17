@@ -138,4 +138,34 @@ describe("Chat", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByRole("link", { name: "Mapa" })).toHaveAttribute("target", "_blank");
   });
+
+  it("enquanto a IA responde, botões que mudam o carrinho ficam desabilitados", async () => {
+    let release!: (r: Response) => void;
+    fetchMock.mockResolvedValueOnce(ndjson(happy));
+    render(<Chat />);
+    await userEvent.type(input(), "bolo{Enter}");
+    const card = (await screen.findByText("Bolo de Cenoura com Chocolate")).closest("li")!;
+    fetchMock.mockReturnValueOnce(new Promise<Response>((r) => (release = r)));
+    await userEvent.type(input(), "e mais?{Enter}");
+    expect(within(card).getByRole("button", { name: /Adicionar/ })).toBeDisabled();
+    release(ndjson([{ type: "text", text: "ok" }, { type: "done" }]));
+    await waitFor(() => expect(within(card).getByRole("button", { name: /Adicionar/ })).toBeEnabled());
+  });
+
+  it("card não adiciona prato que viola restrição salva", async () => {
+    const camarao: DishResult = { ...bolo, itemId: "forno-da-vila-4", nome: "Pizza de Camarão", descricao: "camarão", tags: [], restaurante: { ...bolo.restaurante, id: "forno-da-vila", nome: "Forno da Vila" } };
+    fetchMock.mockResolvedValueOnce(ndjson([
+      { type: "state", state: { prefs: { dieta: [], evitar: ["camarão"], gostos: [] }, cart: { taxaEntrega: 0, itens: [] }, recent: [] } },
+      { type: "dishes", dishes: [camarao] },
+      { type: "text", text: "ok" },
+      { type: "done" },
+    ]));
+    render(<Chat />);
+    await userEvent.type(input(), "pizza{Enter}");
+    const card = (await screen.findByText("Pizza de Camarão")).closest("li")!;
+    await userEvent.click(within(card).getByRole("button", { name: /Adicionar/ }));
+    const panel = screen.getByRole("region", { name: "Seu pedido" });
+    expect(within(panel).getByText(/carrinho está vazio/)).toBeInTheDocument();
+    expect(within(panel).getByRole("status")).toHaveTextContent(/restrição/);
+  });
 });

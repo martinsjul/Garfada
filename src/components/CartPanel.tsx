@@ -4,13 +4,14 @@ import { TAG_LABELS } from "./TagChips";
 
 interface Props {
   state: AgentState;
+  busy?: boolean;
   notice?: string;
   onRemoveItem: (itemId: string) => void;
   onRemovePref: (key: keyof Preferences, value: string) => void;
   onCheckout: () => void;
 }
 
-export default function CartPanel({ state, notice, onRemoveItem, onRemovePref, onCheckout }: Props) {
+export default function CartPanel({ state, busy, notice, onRemoveItem, onRemovePref, onCheckout }: Props) {
   const { cart, prefs } = state;
   const totals = cartTotals(cart);
   const prefChips: { key: keyof Preferences; value: string; label: string }[] = [
@@ -32,6 +33,7 @@ export default function CartPanel({ state, notice, onRemoveItem, onRemovePref, o
                 <button
                   type="button"
                   onClick={() => onRemovePref(p.key, p.value)}
+                  disabled={busy}
                   aria-label={`Remover preferência ${p.value}`}
                   className="grid h-5 w-5 place-items-center rounded-full text-muted hover:bg-accent/20 hover:text-ink"
                 >
@@ -64,6 +66,7 @@ export default function CartPanel({ state, notice, onRemoveItem, onRemovePref, o
                   <button
                     type="button"
                     onClick={() => onRemoveItem(i.itemId)}
+                  disabled={busy}
                     aria-label={`Remover ${i.nome}`}
                     className="text-muted hover:text-danger"
                   >
@@ -89,7 +92,8 @@ export default function CartPanel({ state, notice, onRemoveItem, onRemovePref, o
             <button
               type="button"
               onClick={onCheckout}
-              className="rounded-full bg-accent py-2 font-medium text-accent-ink transition hover:brightness-110"
+              disabled={busy}
+              className="rounded-full bg-accent py-2 font-medium text-accent-ink transition hover:brightness-110 disabled:opacity-40"
             >
               Finalizar pedido
             </button>

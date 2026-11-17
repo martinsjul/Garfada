@@ -4,6 +4,8 @@ import { clientIp, readJson, tooMany } from "@/lib/http";
 import { chatLimiter } from "@/lib/rateLimit";
 import { parseChatBody } from "@/lib/validate";
 
+export const maxDuration = 60;
+
 export async function POST(request: Request): Promise<Response> {
   const body = await readJson(request);
   if (body === undefined) return Response.json({ error: "Requisição inválida." }, { status: 400 });

@@ -64,6 +64,12 @@ export const CASES: EvalCase[] = [
     checks: [noError, called("salvar_preferencia", (a) => a.tipo === "evitar" && normalize(String(a.valor)).includes("camarao"), "salvar_preferencia evitar=camarão"), someDishes, allDishes("contém camarão", (d) => !normalize(`${d.nome} ${d.descricao}`).includes("camarao"))],
   },
   {
+    id: "evitar-plural",
+    descricao: "Restrição no plural continua valendo (camarões × camarão)",
+    messages: [user("Tenho alergia a camarões. Quero um risoto ou algo italiano")],
+    checks: [noError, called("salvar_preferencia", (a) => a.tipo === "evitar", "salvar_preferencia evitar"), allDishes("contém camarão", (d) => !normalize(`${d.nome} ${d.descricao}`).includes("camara"))],
+  },
+  {
     id: "rodizio",
     descricao: "Entende pedido de rodízio",
     messages: [user("Quero um rodízio pra hoje à noite")],

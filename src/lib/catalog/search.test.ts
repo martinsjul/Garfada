@@ -77,6 +77,19 @@ describe("violatesPrefs", () => {
     expect(violatesPrefs(item, { ...EMPTY_PREFS, dieta: ["vegano"] })).toBe(true);
     expect(violatesPrefs(catalog[0].itens[2], { ...EMPTY_PREFS, dieta: ["vegetariano"] })).toBe(false);
   });
+  it("evitar entende plural e singular nos dois sentidos", () => {
+    const camarao = catalog[0].itens[1]; // Pizza de Camarão
+    expect(violatesPrefs(camarao, { ...EMPTY_PREFS, evitar: ["camarões"] })).toBe(true);
+    const plural = { ...camarao, nome: "Camarões empanados", descricao: "" };
+    expect(violatesPrefs(plural, { ...EMPTY_PREFS, evitar: ["camarão"] })).toBe(true);
+  });
+
+  it("evitar 'frutos do mar' bloqueia camarão, mas não bloqueia palavras parecidas", () => {
+    expect(violatesPrefs(catalog[0].itens[1], { ...EMPTY_PREFS, evitar: ["frutos do mar"] })).toBe(true);
+    expect(violatesPrefs({ ...catalog[0].itens[0], nome: "Pão de queijo", descricao: "" }, { ...EMPTY_PREFS, evitar: ["pães"] })).toBe(true);
+    expect(violatesPrefs({ ...catalog[0].itens[0], nome: "Ovomaltine", descricao: "" }, { ...EMPTY_PREFS, evitar: ["ovo"] })).toBe(false);
+  });
+
   it("evitar procura no nome e na descrição", () => {
     expect(violatesPrefs(item, { ...EMPTY_PREFS, evitar: ["manjericao"] })).toBe(true);
   });

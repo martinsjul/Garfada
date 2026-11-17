@@ -2,6 +2,7 @@ import { CATALOG } from "@/data/catalog";
 import { findItem } from "./catalog/search";
 import { MAX_QUANTITY } from "./cart";
 import { MAX_MESSAGE_LENGTH } from "./limits";
+import { cleanText, MAX_PREF_LENGTH } from "./text";
 import { EMPTY_CART, TAGS, type AgentState, type Cart, type ChatMessage, type MenuItem, type Preferences, type Restaurant, type Tag } from "./types";
 
 export { MAX_MESSAGE_LENGTH };
@@ -19,7 +20,7 @@ type ParseResult =
 const INVALID = { ok: false as const, error: "Requisição inválida." };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
-const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+const text = cleanText;
 const clamp = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
 const isTag = (t: unknown): t is Tag => (TAGS as readonly unknown[]).includes(t);
@@ -27,7 +28,10 @@ const isTag = (t: unknown): t is Tag => (TAGS as readonly unknown[]).includes(t)
 export function sanitizePrefs(raw: unknown): Preferences {
   const r = isRecord(raw) ? raw : {};
   const list = (v: unknown) =>
-    (Array.isArray(v) ? v : []).filter((x): x is string => typeof x === "string" && x.trim().length > 0 && x.length <= 40).slice(0, 10);
+    (Array.isArray(v) ? v : [])
+      .map((x) => cleanText(x, MAX_PREF_LENGTH))
+      .filter(Boolean)
+      .slice(0, 10);
   return { dieta: (Array.isArray(r.dieta) ? r.dieta : []).filter(isTag).slice(0, 5), evitar: list(r.evitar), gostos: list(r.gostos) };
 }
 
@@ -36,7 +40,7 @@ export function sanitizeRestaurant(raw: unknown): Restaurant | null {
   const nome = text(raw.nome, 80);
   if (!nome) return null;
   const id = raw.id;
-  const itens: MenuItem[] = (Array.isArray(raw.itens) ? raw.itens : [])
+  const itens: MenuItem[] = (Array.isArray(raw.itens) ? raw.itens.slice(0, MAX_IMPORTED_ITEMS * 2) : [])
     .filter(isRecord)
     .filter((i) => typeof i.id === "string" && i.id.startsWith(`${id}-`) && i.id.length <= 60)
     .map((i) => ({
@@ -104,7 +108,7 @@ export function parseChatBody(body: unknown): ParseResult {
   const firstUser = messages.findIndex((m) => m.role === "user");
   messages = messages.slice(firstUser);
 
-  const imported = (Array.isArray(body.restaurantes) ? body.restaurantes : [])
+  const imported = (Array.isArray(body.restaurantes) ? body.restaurantes.slice(0, MAX_IMPORTED * 2) : [])
     .map(sanitizeRestaurant)
     .filter((r): r is Restaurant => r !== null)
     .slice(0, MAX_IMPORTED);

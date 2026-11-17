@@ -21,7 +21,7 @@ Protótipo de **IA generativa aplicada a delivery**, com os dois lados do market
 | **Guardrails no código, não só no prompt** | `tools.ts`, `cart.ts`, `validate.ts` | As restrições filtram os resultados no código; o carrinho aceita só um restaurante; os preços são **recalculados no servidor** a partir do catálogo. O modelo não consegue "furar" essas regras. |
 | **Memória de preferências** | `AgentState` | Dieta, ingredientes a evitar e gostos vão no estado da conversa e no system prompt. O cliente vê e edita essas preferências no painel. |
 | **Visão + saída estruturada** | `src/lib/menu/extract.ts` | Foto → JSON com `responseSchema`, depois uma normalização defensiva (preço, tags, vegano ⇒ vegetariano, limites de tamanho). |
-| **Evals com a API real** | `evals/` | 10 cenários: preço máximo, dieta, ingrediente proibido, rodízio, tempo de entrega, referência a "esse/o primeiro", um restaurante por pedido, fora do tema, não inventar prato, orçamento. **Resultado atual: 10/10** ([evals/RESULTS.md](evals/RESULTS.md)). |
+| **Evals com a API real** | `evals/` | 11 cenários: preço máximo, dieta, ingrediente proibido (inclusive no plural), rodízio, tempo de entrega, referência a "esse/o primeiro", um restaurante por pedido, fora do tema, não inventar prato, orçamento. **Resultado atual: 11/11** ([evals/RESULTS.md](evals/RESULTS.md)). |
 | **Transparência** | "Como a IA pensou" | Cada resposta mostra as ferramentas chamadas, os argumentos e o resultado, em tempo real (streaming NDJSON). |
 | **Resiliência e custo** | `src/lib/ai/models.ts` | Modelo reserva automático em caso de 503, timeout ou cota por minuto; retries curtos; rate limit por IP; histórico limitado. Roda **100% no free tier** do Gemini. |
 

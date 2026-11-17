@@ -1,6 +1,7 @@
 import { Type, type FunctionDeclaration } from "@google/genai";
 import { addToCart, cartTotals, removeFromCart } from "../cart";
 import { findItem, getMenu, searchDishes, searchRestaurants, violatesPrefs, type DishFilters } from "../catalog/search";
+import { cleanText, MAX_PREF_LENGTH } from "../text";
 import { EMPTY_CART, TAGS, type AgentState, type DishResult, type Restaurant, type Tag, type ToolStep } from "../types";
 
 const TAG_LIST = [...TAGS];
@@ -102,7 +103,7 @@ export interface ToolOutcome {
 }
 
 // ---- conversão segura dos argumentos vindos do modelo ----
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 100) : undefined);
+const str = (v: unknown, max = 100) => cleanText(v, max) || undefined;
 const num = (v: unknown) => {
   const n = typeof v === "string" ? Number(v.replace(",", ".")) : v;
   return typeof n === "number" && Number.isFinite(n) ? n : undefined;
@@ -159,7 +160,7 @@ export function executeTool(name: string, rawArgs: Record<string, unknown>, ctx:
     case "salvar_preferencia":
     case "remover_preferencia": {
       const tipo = str(rawArgs.tipo);
-      const raw = str(rawArgs.valor);
+      const raw = str(rawArgs.valor, MAX_PREF_LENGTH);
       const args = clean({ tipo, valor: raw });
       if (!raw || !tipo || !["dieta", "evitar", "gosto"].includes(tipo)) return fail(args, "Preferência inválida.");
       const valor = tipo === "dieta" ? raw.toLowerCase().replace(/\s+/g, "_").replace("glúten", "gluten") : raw.toLowerCase();

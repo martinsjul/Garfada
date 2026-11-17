@@ -10,6 +10,8 @@ import { executeTool, TOOL_DECLARATIONS } from "./tools";
 import type { AgentState, ChatMessage, Restaurant, StreamEvent } from "../types";
 
 export const MAX_STEPS = 6;
+/** Prazo total do turno (a rota tem maxDuration = 60 s). */
+export const TURN_DEADLINE_MS = 45_000;
 export { GENERIC_ERROR, OVERLOAD_MESSAGE, QUOTA_MESSAGE } from "../ai/models";
 const STEP_LIMIT_TEXT = "Fiz várias buscas e não cheguei a uma resposta boa. Pode reformular o pedido com mais detalhes?";
 const EMPTY_TEXT = "Hmm, não consegui responder dessa vez. Pode reformular o pedido?";
@@ -45,7 +47,9 @@ export async function* runAgent(
   }));
 
   const cursor = { index: 0 };
-  const generate = () =>
+  const signal = AbortSignal.any([AbortSignal.timeout(TURN_DEADLINE_MS), ...(opts.signal ? [opts.signal] : [])]);
+  // No último passo a IA responde sem ferramentas, usando o que já descobriu.
+  const generate = (final = false) =>
     withModelFallback(
       models,
       (model) =>
@@ -55,16 +59,18 @@ export async function* runAgent(
           config: {
             systemInstruction: buildSystemPrompt(state, input.catalog),
             tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+            ...(final && { toolConfig: { functionCallingConfig: { mode: "NONE" } } }),
             temperature: 0.3,
-            ...(opts.signal && { abortSignal: opts.signal }),
+            abortSignal: signal,
           },
         }),
       cursor,
+      signal,
     );
 
   try {
     for (let step = 0; step <= MAX_STEPS; step++) {
-      const response = await generate();
+      const response = await generate(step === MAX_STEPS);
       const calls = (response.functionCalls ?? []).filter((c) => c.name);
 
       if (calls.length === 0) {

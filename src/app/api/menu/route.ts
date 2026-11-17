@@ -6,6 +6,8 @@ import { menuLimiter } from "@/lib/rateLimit";
 const MAX_DATA_URL = 4_500_000; // ~3,3 MB de imagem; o cliente redimensiona antes de enviar
 const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/;
 
+export const maxDuration = 60;
+
 export async function POST(request: Request): Promise<Response> {
   const body = (await readJson(request)) as { image?: unknown } | undefined;
   const image = typeof body?.image === "string" ? body.image : "";

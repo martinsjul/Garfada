@@ -42,7 +42,7 @@ daqueles pratos conversando".
 
 - **Modelo**: `GEMINI_MODEL` com default `gemini-3.5-flash-lite`, testado no free tier com function
   calling e JSON schema. `GEMINI_FALLBACK_MODEL` tem default `gemini-3.5-flash`. Em 503 ou timeout,
-  tenta o próximo modelo. Em 429, mostra a mensagem de cota.
+  tenta o próximo modelo. Em 429 também troca de modelo, porque a cota do free tier é por modelo; se todos falharem, a mensagem diferencia o limite por minuto ("espere 1 minutinho") do limite diário. Cada turno tem prazo total de 45 s, e as rotas têm `maxDuration = 60`.
 - **Agente**: loop manual de function calling no servidor, com no máximo 6 passos. Os eventos NDJSON
   são `tool`, `dishes`, `state`, `text`, `error` e `done`. A resposta final não é transmitida em
   streaming, porque o loop precisa da resposta completa. Os passos aparecem ao vivo.
@@ -56,7 +56,7 @@ daqueles pratos conversando".
 - **Regras no código** (guardrails): restrições filtram os resultados; o carrinho aceita só um
   restaurante; a quantidade vai de 1 a 20; os IDs precisam existir.
 - **Imagens**: o cliente redimensiona a foto para até 1600px em JPEG, para ficar abaixo do limite de
-  4,5 MB da Vercel. O rate limit da extração é de 5 por hora por IP.
+  4,5 MB da Vercel. O rate limit da extração é de 8 por hora por IP.
 - **Marca**: Garfada. Sem nome ou logo do iFood. O README diz que foi "inspirado em assistentes de
   pedido por conversa".
 - **Reaproveitado da v1**: streaming NDJSON, `readEvents`, rate limit, validação, layout, tokens de cor,
@@ -76,9 +76,15 @@ Pagamento real, login, banco de dados, voz, busca semântica, painel de vendas d
 
 ## Riscos conhecidos
 
-- **Prompt injection via cardápio importado**: o texto do cardápio entra nos resultados das
-  ferramentas. Como fica no navegador do próprio usuário, o impacto é limitado. O system prompt manda
-  tratar dados de ferramentas como dados.
+- **Prompt injection via cardápio importado ou preferências**: esses textos entram nos resultados das
+  ferramentas e no estado do system prompt. Mitigações: quebras de linha e caracteres de controle são
+  removidos na validação; o estado vai como **bloco JSON marcado como dados**; e as regras críticas
+  (preço, restrições, carrinho) ficam no código. Num produto com vários usuários, o cardápio publicado
+  também passaria por moderação.
+- **Restrições por texto**: "evitar" compara radicais (plural ⇄ singular) e alguns grupos ("frutos do mar",
+  "peixe"). Sinônimos fora disso não são pegos; um produto real usaria alérgenos estruturados no cardápio.
+- **Ações durante a resposta**: os botões que mudam o carrinho ficam desabilitados enquanto o agente responde,
+  para o estado do servidor não sobrescrever uma ação do usuário.
 - **Free tier instável** (503): o fallback de modelo mitiga.
 
 ## Checklist de construção

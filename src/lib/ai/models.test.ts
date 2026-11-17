@@ -28,6 +28,14 @@ describe("withModelFallback", () => {
     await expect(withModelFallback(["a", "b"], fn)).resolves.toBe("ok");
   });
 
+  it("não troca de modelo se a requisição foi cancelada (cliente saiu ou prazo estourou)", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fn = vi.fn().mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
+    await expect(withModelFallback(["a", "b"], fn, { index: 0 }, controller.signal)).rejects.toThrow("aborted");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it("erro comum não troca de modelo", async () => {
     const fn = vi.fn().mockRejectedValue(new Error("boom"));
     await expect(withModelFallback(["a", "b"], fn)).rejects.toThrow("boom");
