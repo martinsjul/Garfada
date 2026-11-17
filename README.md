@@ -1,36 +1,97 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍽️ Garfada: pedidos de comida por conversa, com IA
 
-## Getting Started
+Protótipo de **IA generativa aplicada a delivery**, com os dois lados do marketplace:
 
-First, run the development server:
+- **🧑 Cliente: agente de pedidos.** Você conversa como com um amigo: *"sou vegetariana, quero uma massa até R$ 50"*. O agente busca no catálogo, **lembra suas restrições**, monta o **carrinho** e mostra **como pensou** em cada passo.
+- **👩‍🍳 Restaurante: copiloto de cardápio.** O dono envia a **foto do cardápio de papel**. A IA extrai pratos, preços, categorias e tags (vegano, sem glúten…), reescreve as descrições, sugere combos e publica. **Na hora, o agente do cliente já recomenda esses pratos.**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**Demo:** <!-- link da Vercel -->
+
+| Agente de pedidos | Celular |
+|---|---|
+| ![Agente de pedidos](docs/screenshot.png) | ![Celular](docs/screenshot-mobile.png) |
+
+![Copiloto do restaurante](docs/screenshot-restaurante.png)
+
+## O que tem de GenAI aqui
+
+| Técnica | Onde | Por quê |
+|---|---|---|
+| **Agente com function calling** | `src/lib/agent/` | O Gemini decide quais das 9 ferramentas chamar (buscar pratos, ver cardápio, salvar preferência, adicionar ao carrinho…) num loop de até 6 passos. |
+| **Guardrails no código, não só no prompt** | `tools.ts`, `cart.ts`, `validate.ts` | As restrições filtram os resultados no código; o carrinho aceita só um restaurante; os preços são **recalculados no servidor** a partir do catálogo. O modelo não consegue "furar" essas regras. |
+| **Memória de preferências** | `AgentState` | Dieta, ingredientes a evitar e gostos vão no estado da conversa e no system prompt. O cliente vê e edita essas preferências no painel. |
+| **Visão + saída estruturada** | `src/lib/menu/extract.ts` | Foto → JSON com `responseSchema`, depois uma normalização defensiva (preço, tags, vegano ⇒ vegetariano, limites de tamanho). |
+| **Evals com a API real** | `evals/` | 11 cenários: preço máximo, dieta, ingrediente proibido (inclusive no plural), rodízio, tempo de entrega, referência a "esse/o primeiro", um restaurante por pedido, fora do tema, não inventar prato, orçamento. **Resultado atual: 11/11** ([evals/RESULTS.md](evals/RESULTS.md)). |
+| **Transparência** | "Como a IA pensou" | Cada resposta mostra as ferramentas chamadas, os argumentos e o resultado, em tempo real (streaming NDJSON). |
+| **Resiliência e custo** | `src/lib/ai/models.ts` | Modelo reserva automático em caso de 503, timeout ou cota por minuto; retries curtos; rate limit por IP; histórico limitado. Roda **100% no free tier** do Gemini. |
+
+## Arquitetura
+
+```
+             Pedir comida (/)                               Para restaurantes (/restaurante)
+  ┌──────────────────────────────────┐              ┌──────────────────────────────────────┐
+  │ Chat · cards · carrinho · prefs  │              │ foto → revisão (tabela) → publicar   │
+  └──────────────┬───────────────────┘              └──────────────┬───────────────────────┘
+                 │ mensagens + estado + restaurantes importados     │ imagem (redimensionada no navegador)
+                 ▼                                                  ▼
+        POST /api/chat (NDJSON)                            POST /api/menu
+   valida · rate limit · recalcula carrinho            valida · rate limit
+                 │                                                  │
+                 ▼                                                  ▼
+   ┌── loop do agente (≤ 6 passos) ──┐                  Gemini (visão + JSON schema)
+   │ Gemini ⇄ ferramentas no código  │                              │
+   │  buscar_pratos · ver_cardapio   │                              ▼
+   │  salvar_preferencia · carrinho… │                  rascunho normalizado do cardápio
+   └─────────────────────────────────┘                  → salvo no navegador (localStorage)
+     eventos: tool · dishes · state · text · done        → enviado junto com cada mensagem do chat
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Catálogo:** 12 restaurantes **fictícios** em bairros reais de São Paulo (`src/data/catalog.ts`), mais os que você publicar pelo copiloto.
+- **Sem banco de dados:** o estado da conversa vive no cliente e o servidor valida tudo a cada requisição. Isso deixa o deploy gratuito e simples. Num produto real, esse estado iria para um banco.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Decisões e trade-offs
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Busca por palavra-chave em vez de embeddings.** Para 12 restaurantes, é suficiente e não gasta cota; o próprio agente expande sinônimos na consulta. Próximo passo: busca semântica com embeddings.
+- **Resposta final sem streaming de tokens.** O loop precisa da resposta completa para decidir se chama ferramentas. Em troca, os passos chegam ao vivo, então o usuário vê o progresso.
+- **`gemini-3.5-flash-lite` como padrão.** Foi o modelo mais estável no free tier nos testes, com `gemini-3.5-flash` como reserva.
+- **Cardápio importado é dado não confiável:** pode conter prompt injection. O system prompt manda tratar resultados de ferramentas como dados, e os guardrails críticos (preço, restrições, carrinho) estão no código.
 
-## Learn More
+## Rodando localmente
 
-To learn more about Next.js, take a look at the following resources:
+Pré-requisitos: Node 20+ e uma chave gratuita do [Google AI Studio](https://aistudio.google.com/apikey).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm install
+cp .env.example .env.local   # coloque sua GEMINI_API_KEY
+npm run dev                  # http://localhost:3000
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Testes:
 
-## Deploy on Vercel
+```bash
+npm test                          # 100+ testes unitários e de componentes (Vitest + Testing Library)
+npx playwright install chromium   # só na primeira vez
+npx playwright test               # ponta a ponta (desktop e celular), com a API simulada
+npm run evals                     # qualidade do agente com o Gemini real (precisa de GEMINI_API_KEY)
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy (grátis na Vercel)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Importe o repositório em [vercel.com/new](https://vercel.com/new).
+2. Em *Environment Variables*, defina `GEMINI_API_KEY`.
+3. Deploy. 🎉
+
+## Próximos passos
+
+- Busca semântica (embeddings) e ranking personalizado pelo histórico de pedidos.
+- Pedido por voz (o Gemini aceita áudio).
+- Persistência real (banco + login) e painel do restaurante com perguntas sobre vendas.
+- Mais evals, com casos gerados automaticamente e métricas por ferramenta.
+
+## Stack
+
+Next.js · React · TypeScript · Tailwind CSS · Google Gen AI SDK (`@google/genai`) · Vitest · Testing Library · Playwright
+
+---
+
+*Projeto pessoal de portfólio, inspirado em assistentes de pedido por conversa. Restaurantes, pratos e preços são fictícios; nenhum pagamento é processado.*
