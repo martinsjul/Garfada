@@ -1,13 +1,16 @@
 import "server-only";
-import { GoogleGenAI } from "@google/genai";
+import {
+  defaultModels,
+  friendlyError,
+  getGenAIModels,
+  withModelFallback,
+} from "../ai/models";
 import { buildSystemPrompt } from "./prompt";
 import { executeTool, TOOL_DECLARATIONS } from "./tools";
 import type { AgentState, ChatMessage, Restaurant, StreamEvent } from "../types";
 
 export const MAX_STEPS = 6;
-export const QUOTA_MESSAGE = "A demo atingiu o limite gratuito de hoje. Volte amanhã! 🙏";
-export const OVERLOAD_MESSAGE = "A IA está sobrecarregada agora. Tente de novo em alguns segundos. ⏳";
-export const GENERIC_ERROR = "Ops, algo deu errado ao falar com a IA. Tente de novo.";
+export { GENERIC_ERROR, OVERLOAD_MESSAGE, QUOTA_MESSAGE } from "../ai/models";
 const STEP_LIMIT_TEXT = "Fiz várias buscas e não cheguei a uma resposta boa. Pode reformular o pedido com mais detalhes?";
 const EMPTY_TEXT = "Hmm, não consegui responder dessa vez. Pode reformular o pedido?";
 
@@ -29,41 +32,25 @@ export interface AgentInput {
   catalog: Restaurant[];
 }
 
-export function defaultModels(): string[] {
-  const primary = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
-  const fallback = process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.5-flash";
-  return fallback && fallback !== primary ? [primary, fallback] : [primary];
-}
-
-function errorStatus(error: unknown): number | undefined {
-  const e = error as { status?: unknown; name?: unknown; message?: unknown } | null;
-  if (typeof e?.status === "number") return e.status;
-  const msg = typeof e?.message === "string" ? e.message : "";
-  if (msg.includes("RESOURCE_EXHAUSTED")) return 429;
-  if (msg.includes("UNAVAILABLE") || e?.name === "TimeoutError" || e?.name === "AbortError") return 503;
-  return undefined;
-}
-
-const isRetryable = (status?: number) => status === 503 || status === 500 || status === 504;
-
 export async function* runAgent(
   client: AgentClient,
   input: AgentInput,
   opts: { models?: string[]; signal?: AbortSignal } = {},
 ): AsyncGenerator<StreamEvent> {
   const models = opts.models ?? defaultModels();
-  let modelIndex = 0;
   let state = input.state;
   const contents: Content[] = input.messages.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.text }],
   }));
 
-  async function generate(): Promise<ModelResponse> {
-    while (true) {
-      try {
-        return await client.generateContent({
-          model: models[modelIndex],
+  const cursor = { index: 0 };
+  const generate = () =>
+    withModelFallback(
+      models,
+      (model) =>
+        client.generateContent({
+          model,
           contents,
           config: {
             systemInstruction: buildSystemPrompt(state),
@@ -71,17 +58,9 @@ export async function* runAgent(
             temperature: 0.3,
             ...(opts.signal && { abortSignal: opts.signal }),
           },
-        });
-      } catch (error) {
-        if (isRetryable(errorStatus(error)) && modelIndex < models.length - 1) {
-          console.warn(`[agente] ${models[modelIndex]} indisponível, tentando ${models[modelIndex + 1]}`);
-          modelIndex++;
-          continue;
-        }
-        throw error;
-      }
-    }
-  }
+        }),
+      cursor,
+    );
 
   try {
     for (let step = 0; step <= MAX_STEPS; step++) {
@@ -114,15 +93,10 @@ export async function* runAgent(
     yield { type: "done" };
   } catch (error) {
     console.error("[agente] erro:", error);
-    const status = errorStatus(error);
-    yield { type: "error", message: status === 429 ? QUOTA_MESSAGE : isRetryable(status) ? OVERLOAD_MESSAGE : GENERIC_ERROR };
+    yield { type: "error", message: friendlyError(error) };
   }
 }
 
 export function getAgentClient(): AgentClient {
-  const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
-    httpOptions: { timeout: 20_000, retryOptions: { attempts: 2, initialDelay: 0.5, maxDelay: 2 } },
-  });
-  return ai.models as unknown as AgentClient;
+  return getGenAIModels() as unknown as AgentClient;
 }

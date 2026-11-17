@@ -35,3 +35,4 @@ export function createRateLimiter({ limit, windowMs, now = Date.now }: RateLimit
 }
 
 export const chatLimiter = createRateLimiter({ limit: 20, windowMs: 3_600_000 });
+export const menuLimiter = createRateLimiter({ limit: 8, windowMs: 3_600_000 });
